@@ -3,11 +3,15 @@ kill_signal = "SIGINT"
 kill_timeout = 5
 processes = [ ]
 
+[env]
+PORT = "8080"
+
+[deploy]
+release_command = "npx prisma migrate deploy"
+
 [experimental]
 allowed_public_ports = [ ]
 auto_rollback = true
-cmd = "start.sh"
-entrypoint = "sh"
 
 [[services]]
 internal_port = 8080
