@@ -153,8 +153,8 @@ Prior to your first deployment, you'll need to do a few things:
 -   Create two apps on Fly, one for staging and one for production:
 
     ```sh
-    fly create rbs-5fac
-    fly create rbs-5fac-staging
+    fly create rockabilly-stack-template
+    fly create rockabilly-stack-template-staging
     ```
 
     -   Initialize Git.
@@ -174,8 +174,8 @@ Prior to your first deployment, you'll need to do a few things:
 -   Add a `SESSION_SECRET` to your fly app secrets, to do this you can run the following commands:
 
     ```sh
-    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rbs-5fac
-    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rbs-5fac-staging
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rockabilly-stack-template
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rockabilly-stack-template-staging
     ```
 
     If you don't have openssl installed, you can also use [1password](https://1password.com/generate-password) to generate a random secret, just replace `$(openssl rand -hex 32)` with the generated secret.
@@ -184,9 +184,9 @@ Prior to your first deployment, you'll need to do a few things:
 -   Create a single Postgres server and attach it to both production and staging apps:
 
     ```sh
-    fly postgres create --name rbs-5fac-db
-    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac
-    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac-staging
+    fly postgres create --name rockabilly-stack-template-db
+    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template
+    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template-staging
     ```
 
     This approach allows you to fit a full deployment with production and staging versions of the app and a postgres
@@ -194,10 +194,10 @@ Prior to your first deployment, you'll need to do a few things:
     both production and staging, in which case you would substitute the following commands for the ones above:
 
     ```sh
-    fly postgres create --name rbs-5fac-db
-    fly postgres create --name rbs-5fac-staging-db
-    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac
-    fly postgres attach --postgres-app rbs-5fac-staging-db --app rbs-5fac-staging
+    fly postgres create --name rockabilly-stack-template-db
+    fly postgres create --name rockabilly-stack-template-staging-db
+    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template
+    fly postgres attach --postgres-app rockabilly-stack-template-staging-db --app rockabilly-stack-template-staging
     ```
     Fly will take care of setting the DATABASE_URL secret for you.
 
