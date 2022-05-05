@@ -36,7 +36,7 @@ Click this button to create a [Gitpod](https://gitpod.io) workspace with the pro
 
 ## Development
 
--   Start the Postgres Database in [Docker](https://www.docker.com/get-started):
+- Start the Postgres Database in [Docker](https://www.docker.com/get-started):
 
     ```sh
     npm run docker
@@ -44,13 +44,19 @@ Click this button to create a [Gitpod](https://gitpod.io) workspace with the pro
 
     > **Note:** The npm script will complete while Docker sets up the container in the background. Ensure that Docker has finished and your container is running before proceeding.
 
--   Initial setup: _If you just generated this project, this step has been done for you._
+- Initial setup: _If you just generated this project, this step has been done for you._
 
     ```sh
     npm run setup
     ```
 
--   Start dev server:
+- Build the app:
+
+    ```sh
+    npm run build
+    ```
+-   
+- Start dev server:
 
     ```sh
     npm run dev
