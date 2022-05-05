@@ -10,19 +10,21 @@ npx create-remix --template jbstewart/rockabilly-stack
 
 ## What's in the stack
 
--   [Fly app deployment](https://fly.io) with [Docker](https://www.docker.com/)
--   Production-ready [PostgreSQL Database](https://www.postgresql.org/)
--   Healthcheck endpoint for [Fly backups region fallbacks](https://fly.io/docs/reference/configuration/#services-http_checks)
--   [GitHub Actions](https://github.com/features/actions) for deploy on merge to production and staging environments
--   Email/Password Authentication with [cookie-based sessions](https://remix.run/docs/en/v1/api/remix#createcookiesessionstorage)
--   Database ORM with [Prisma](https://prisma.io)
--   Styling with [Tailwind](https://tailwindcss.com/)
--   End-to-end testing with [Cypress](https://cypress.io)
--   Local third party request mocking with [MSW](https://mswjs.io)
--   Unit testing with [Vitest](https://vitest.dev) and [Testing Library](https://testing-library.com)
--   Code formatting with [Prettier](https://prettier.io)
--   Linting with [ESLint](https://eslint.org)
--   Static Types with [TypeScript](https://typescriptlang.org)
+- [Fly app deployment](https://fly.io) with [Docker](https://www.docker.com/)
+- Production-ready [PostgreSQL Database](https://www.postgresql.org/)
+- Both production and staging databases are run on the same app on Fly, so this whole stack still fits in the free tier
+- Healthcheck endpoint for [Fly backups region fallbacks](https://fly.io/docs/reference/configuration/#services-http_checks)
+- [GitHub Actions](https://github.com/features/actions) for deploy on merge to production and staging environments
+- Email/Password Authentication with [cookie-based sessions](https://remix.run/docs/en/v1/api/remix#createcookiesessionstorage)
+- Database ORM with [Prisma](https://prisma.io)
+- Styling with [Tailwind](https://tailwindcss.com/)
+- End-to-end testing with [Cypress](https://cypress.io)
+- Local third party request mocking with [MSW](https://mswjs.io)
+- Unit testing with [Vitest](https://vitest.dev) and [Testing Library](https://testing-library.com)
+- Code formatting with [Prettier](https://prettier.io)
+- Linting with [ESLint](https://eslint.org)
+- Static Types with [TypeScript](https://typescriptlang.org)
+- Database-backed webhook handling as described in [Stripe's video on webhooks](https://www.youtube.com/watch?v=oYSLhriIZaA&ab_channel=StripeDevelopers)
 
 Not a fan of bits of the stack? Fork it, change it, and use `npx create-remix --template your/repo`! Make it your own.
 
@@ -65,9 +67,72 @@ The database seed script creates a new user with some data you can use to get st
 
 This is a pretty simple note-taking app, but it's a good example of how you can build a full stack app with Prisma and Remix. The main functionality is creating users, logging in and out, and creating and deleting notes.
 
--   creating users, and logging in and out [./app/models/user.server.ts](./app/models/user.server.ts)
--   user sessions, and verifying them [./app/session.server.ts](./app/session.server.ts)
--   creating, and deleting notes [./app/models/note.server.ts](./app/models/note.server.ts)
+- creating users, and logging in and out [./app/models/user.server.ts](./app/models/user.server.ts)
+- user sessions, and verifying them [./app/session.server.ts](./app/session.server.ts)
+- creating, and deleting notes [./app/models/note.server.ts](./app/models/note.server.ts)
+- see the webhooks section for details of how to add new types of webhooks to your app
+
+### Webhooks
+This stack features a database-backed webhook handler as described in [Stripe's video on webhooks](https://www.youtube.com/watch?v=oYSLhriIZaA&ab_channel=StripeDevelopers).
+Webhook calls are received on the route `/webhooks/$service`, where $service is a short string you assign
+to each new handler you add (e.g. 'stripe' or 'convertkit'). The stack contains one example handler
+called 'notes' that will listen for webhook calls that either edit an existing note if a NoteID is supplied,
+or will add a new note id a userEmail is supplied. See the curl calls below for examples.
+```shell
+# add a new note
+curl --location --request POST 'http://localhost:3000/webhooks/notes' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic MWYwMzAzYzEtYThmMy00MzEzLTkwYWMtYmRlMjY4YTQwMzJmOg==' \
+--data-raw '{
+    "userEmail": "rachel@remix.run",
+    "title": "A webhook-added note!",
+    "noteContent": "A really cool note!"
+}'
+```
+```shell
+# edit an existing note - you can find the id of a note by looking at it on the Notes page of  
+# the app and noting the id in the URL: e.g. http://localhost:3000/notes/cl2s6ncdi0010ai3d41v9g56s
+curl --location --request POST 'http://localhost:3000/webhooks/notes' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Basic MWYwMzAzYzEtYThmMy00MzEzLTkwYWMtYmRlMjY4YTQwMzJmOg==' \
+--data-raw '{
+    "id": "<<NOTE ID GOES HERE>>",
+    "title": "An awesome new title for this note!"
+}'
+```
+The example code for the Notes Webhook is found in `/app/webhooks/note-webhook.server.ts`.
+
+When a call is made to the `/webhooks/$service` endpoint, the service is extracted from the URL
+and used to look up the handler registered for that service code. If not found the request
+is discarded, otherwise the validate function of the handler (`validateEvent()`) is called. This function is designed to
+do things like check the signature (the Notes example handler just checks that a hardcoded key is found
+in the Basic Authentication header - real handlers usually get a secret to check against from an
+environment variable), extract an externalID (used to make calls to the endpoint idempotent, and set to
+a unique timestamp if not supplied), and check the body of the request for correctness.
+
+If everything checks out (signature correct, not a duplicated, body is correct, etc) then the event is
+serialized to the WebhookEvent table with a status of PENDING. This stack also includes a background
+processor, that runs in a forked process, and checks the WebhookEvent table for unprocessed
+or failed events once every minute (by default, it's a constant you can change). For each such event found,
+the background processor calls a `processEvent()` function in the handler. If the call is successful
+the handler marks the event as PROCESSED. If not, it is marked as FAILED and the fail count for that event
+is incremented. After an event fails to be processed 3 times (again, a constant you can change), it will no
+longer be processed. If you go into the database and reset the count to 0, the background processor
+will again attempt to process it the next time it runs.
+
+#### Adding New Webhooks
+- Add your new handler: e.g. `/app/webhooks/stripe-webhook.server.ts`
+- Implement a `register()` function in that file where you register your `ServiceDefinition`
+- Add a call to your `register()` function in the `registerWebhooks()` function in `/app/webhooks/register-webhooks.server.ts`
+
+#### Debugging Webhooks
+Debugging webhooks can be tricky, as normally there's no way for the service calling your webhook to
+punch through your NAT firewall to reach your development machine. Some services like Stripe provide a CLI that
+can not only punch through the firewall, but can replay calls to your webhook for debugging.
+Most of the time though, you will need to either make calls simulating the service locally (as in the curl
+examples above) or make a tunnel through the firewall with something like [ngrok](https://ngrok.com/).
+For local testing [Postman](https://www.postman.com/) is another good tool, especially for simpler webhook calls that can be recreated
+as Postman requests.
 
 ## Deployment
 
@@ -88,8 +153,8 @@ Prior to your first deployment, you'll need to do a few things:
 -   Create two apps on Fly, one for staging and one for production:
 
     ```sh
-    fly create rockabilly-stack-template
-    fly create rockabilly-stack-template-staging
+    fly create rbs-5fac
+    fly create rbs-5fac-staging
     ```
 
     -   Initialize Git.
@@ -109,8 +174,8 @@ Prior to your first deployment, you'll need to do a few things:
 -   Add a `SESSION_SECRET` to your fly app secrets, to do this you can run the following commands:
 
     ```sh
-    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rockabilly-stack-template
-    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rockabilly-stack-template-staging
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rbs-5fac
+    fly secrets set SESSION_SECRET=$(openssl rand -hex 32) --app rbs-5fac-staging
     ```
 
     If you don't have openssl installed, you can also use [1password](https://1password.com/generate-password) to generate a random secret, just replace `$(openssl rand -hex 32)` with the generated secret.
@@ -119,20 +184,20 @@ Prior to your first deployment, you'll need to do a few things:
 -   Create a single Postgres server and attach it to both production and staging apps:
 
     ```sh
-    fly postgres create --name rockabilly-stack-template-db
-    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template
-    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template-staging
+    fly postgres create --name rbs-5fac-db
+    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac
+    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac-staging
     ```
-    
-    This approach allows you to fit a full deployment with production and staging versions of the app and a postgres 
+
+    This approach allows you to fit a full deployment with production and staging versions of the app and a postgres
     database into the free tier of fly.io. A more conventional setup would be to create separate postgres databases for
     both production and staging, in which case you would substitute the following commands for the ones above:
 
     ```sh
-    fly postgres create --name rockabilly-stack-template-db
-    fly postgres create --name rockabilly-stack-template-staging-db
-    fly postgres attach --postgres-app rockabilly-stack-template-db --app rockabilly-stack-template
-    fly postgres attach --postgres-app rockabilly-stack-template-staging-db --app rockabilly-stack-template-staging
+    fly postgres create --name rbs-5fac-db
+    fly postgres create --name rbs-5fac-staging-db
+    fly postgres attach --postgres-app rbs-5fac-db --app rbs-5fac
+    fly postgres attach --postgres-app rbs-5fac-staging-db --app rbs-5fac-staging
     ```
     Fly will take care of setting the DATABASE_URL secret for you.
 
