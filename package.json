@@ -9,7 +9,7 @@
 		"build": "run-s build:*",
 		"build:css": "npm run generate:css -- --minify",
 		"build:remix": "remix build",
-		"build:server": "esbuild --platform=node --format=cjs ./server.ts --outdir=build",
+		"build:server": "esbuild --platform=node --format=cjs --bundle ./server.ts --outdir=build",
 		"build:background": "esbuild --platform=node --format=cjs app/background-processor.ts --bundle --outdir=build ",
 		"clean": "rm -rf build",
 		"dev": "run-p dev:*",
