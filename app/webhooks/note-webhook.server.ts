@@ -2,7 +2,7 @@ import type { ProcessingResult, ServiceEventValidation } from '~/webhooks/webhoo
 import { registerWebhookService } from '~/webhooks/webhooks.server'
 import { createNote, updateNote } from '~/models/note.server'
 import { getUserByEmail } from '~/models/user.server'
-import { getMessageFromError } from '~/utils'
+import { getMessageFromError } from '~/utils/utils'
 
 // Note webhook calls need to have the following API key set in a Basic Auth header as the username, with no password.
 // Normally this would come from the service calling the webhook, and would be retrieved from an environment variable.

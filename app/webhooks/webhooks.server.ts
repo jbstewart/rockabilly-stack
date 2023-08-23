@@ -1,6 +1,6 @@
 import type { WebhookEvent } from '@prisma/client'
 import { getUnprocessedWebhookEvents, setWebhookEventState, WebhookEventState } from '~/models/webhook-events.server'
-import { getMessageFromError } from '~/utils'
+import { getMessageFromError } from '~/utils/utils'
 
 export type ServiceEventValidation = {
 	service: string

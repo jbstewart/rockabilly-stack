@@ -1,6 +1,6 @@
 import { setupServer } from 'msw/node'
 
-import '~/utils'
+import '~/utils/utils'
 
 const server = setupServer()
 
