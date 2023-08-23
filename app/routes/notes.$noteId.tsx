@@ -1,12 +1,12 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
 import { json, redirect } from '@remix-run/node'
-import { Form, useCatch, useLoaderData } from '@remix-run/react'
+import { Form, isRouteErrorResponse, useLoaderData, useRouteError } from '@remix-run/react'
 import invariant from 'tiny-invariant'
 
 import type { Note } from '~/models/note.server'
-import { deleteNote } from '~/models/note.server'
-import { getNote } from '~/models/note.server'
+import { deleteNote , getNote } from '~/models/note.server'
 import { requireUserId } from '~/session.server'
+import { getMessageFromError } from '~/utils'
 
 type LoaderData = {
 	note: Note
@@ -33,7 +33,7 @@ export const action: ActionFunction = async ({ request, params }) => {
 }
 
 export default function NoteDetailsPage() {
-	const data = useLoaderData() as LoaderData
+	const data = useLoaderData<LoaderData>()
 
 	return (
 		<div>
@@ -52,18 +52,19 @@ export default function NoteDetailsPage() {
 	)
 }
 
-export function ErrorBoundary({ error }: { error: Error }) {
+export function ErrorBoundary() {
+	const error = useRouteError()
 	console.error(error)
 
-	return <div>An unexpected error occurred: {error.message}</div>
-}
-
-export function CatchBoundary() {
-	const caught = useCatch()
-
-	if (caught.status === 404) {
-		return <div>Note not found</div>
+	if (isRouteErrorResponse(error)) {
+		if (error.status == 404) {
+			return <div>Note not found</div>
+		}
+		return <div>`Error: ${error.status}: ${error.statusText}`</div>
 	}
-
-	throw new Error(`Unexpected caught response with status: ${caught.status}`)
+	else {
+		const message = getMessageFromError(error)
+		return <div>`An unexpected error occurred: ${message}`</div>
+	}
 }
+

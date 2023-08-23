@@ -1,4 +1,4 @@
-import type { ActionFunction, LoaderFunction, MetaFunction } from '@remix-run/node'
+import type { ActionFunction, LoaderFunction } from '@remix-run/node'
 import { json, redirect } from '@remix-run/node'
 import { Form, Link, useActionData, useSearchParams } from '@remix-run/react'
 import * as React from 'react'
@@ -48,15 +48,15 @@ export const action: ActionFunction = async ({ request }) => {
 	return createUserSession({
 		request,
 		userId: user.id,
-		remember: remember === 'on' ? true : false,
+		remember: remember === 'on',
 		redirectTo,
 	})
 }
 
-export const meta: MetaFunction = () => {
-	return {
+export const meta: () => [{ title: string }] = () => {
+	return [{
 		title: 'Login',
-	}
+	}]
 }
 
 export default function LoginPage() {
